@@ -24,7 +24,7 @@ class Labirinto:
                         self.matriz.append(linha_int)
 
             if not self.matriz:
-                 raise ValueError("Labirinto vazio ou ilegível.")
+                raise ValueError("Labirinto vazio ou ilegível.")
 
             self.linhas = len(self.matriz)
             self.colunas = len(self.matriz[0])
