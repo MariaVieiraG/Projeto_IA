@@ -3,17 +3,17 @@
 class AgenteReativoBaseadoEmModelo:
     def __init__(self, labirinto, posicao_inicial):
         # Mapeamento de vetores de movimento (dy, dx)
-        self.deltas = [(-1, 0), (0, 1), (1, 0), (0, -1)] 
+        self.deltas = [(-1, 0), (0, 1), (1, 0), (0, -1)] # 0:N, 1:L, 2:S, 3:O
         self.mapa_abs_dir = {'N': 0, 'L': 1, 'S': 2, 'O': 3}
-        self.dir_atual = 1 # Estado Interno: Direção atual (mantido do agente simples)
+        self.dir_atual = 1 # Mantido por consistência, embora a decisão seja absoluta
         
-        # --- NOVO: MODELO INTERNO (MEMÓRIA DE VISITAS) ---
+        # --- MODELO INTERNO & VARIÁVEIS DE ESTADO ---
         self.posicao_atual = posicao_inicial
         
         linhas = len(labirinto)
         colunas = len(labirinto[0])
         
-        # Cria a matriz para rastrear a contagem de visitas (0 = não visitado)
+        # Matriz para rastrear a contagem de visitas (0 = não visitado)
         self.memoria_visitados = [[0] * colunas for _ in range(linhas)]
         
         # Marca a posição inicial como visitada
@@ -21,52 +21,53 @@ class AgenteReativoBaseadoEmModelo:
         self.memoria_visitados[r][c] = 1 
         
     def get_percepcao_por_indice(self, percepcoes, indice_abs):
-        """Traduz o índice absoluto para a chave de percepção e retorna o valor."""
+        # ... (Mantido)
         for chave, indice in self.mapa_abs_dir.items():
             if indice == indice_abs:
                 return percepcoes.get(chave, 1) 
         return 1 
 
     def mover(self, movimento):
-        """
-        Move o agente, atualiza a posição e o MODELO INTERNO.
-        Retorna a nova posição (y, x).
-        """
+        # ... (Mantido)
         y, x = self.posicao_atual
         
         if movimento:
             dy, dx = movimento
             nova_posicao = (y + dy, x + dx)
             
-            # --- ATUALIZAÇÃO DO MODELO ---
             self.posicao_atual = nova_posicao
             r, c = nova_posicao
-            self.memoria_visitados[r][c] += 1 # Incrementa o contador de visitas
+            self.memoria_visitados[r][c] += 1
+            
+            # O Agente Simples usava self.dir_atual. Mantemos a atualização aqui para consistência.
+            # Lógica para atualizar self.dir_atual baseada no delta do movimento:
+            try:
+                self.dir_atual = self.deltas.index(movimento)
+            except ValueError:
+                pass # Caso o delta não esteja na lista (não deve acontecer)
             
             return nova_posicao
             
-        return self.posicao_atual # Retorna a mesma posição se o movimento for nulo
+        return self.posicao_atual
 
     def decidir(self, percepcoes, labirinto):
         """
-        Lógica Baseada em Modelo: Exploração por Menor Visita.
-        Prioriza: Objetivo > Nunca Visitado (0) > Menos Visitado
+        Lógica Baseada em Modelo MELHORADA (Puramente Reativa).
+        Prioriza: Objetivo > Explorar Não Visitado (Prioridade Direcional) > Backtrack (Menos Visitado)
         """
         r, c = self.posicao_atual
+        vizinhos_info = []
         
         # 1. Definir Vizinhos e Obter Percepções/Dados da Memória
-        vizinhos_info = []
         for direcao_abs, (dy, dx) in enumerate(self.deltas):
             vr, vc = r + dy, c + dx
             
-            # Garante que a coordenada está dentro dos limites e não é parede (valor 1)
             if 0 <= vr < len(labirinto) and 0 <= vc < len(labirinto[0]) and labirinto[vr][vc] != 1:
                 
-                # Coleta as informações cruciais para a decisão:
                 vizinhos_info.append({
                     'posicao': (vr, vc),
-                    'conteudo': labirinto[vr][vc], # 0, 2 (Entrada), ou 3 (Saída)
-                    'contagem_visitas': self.memoria_visitados[vr][vc], # Modelo Interno
+                    'conteudo': labirinto[vr][vc],
+                    'contagem_visitas': self.memoria_visitados[vr][vc],
                     'direcao_abs': direcao_abs
                 })
         
@@ -75,25 +76,34 @@ class AgenteReativoBaseadoEmModelo:
         # Regra A: Encontrou o Objetivo (3)
         for info in vizinhos_info:
             if info['conteudo'] == 3:
-                # O agente não precisa mudar a direção interna (dir_atual) se for só ir para o objetivo
                 return (info['posicao'][0] - r, info['posicao'][1] - c)
 
-        # Regra B: Priorizar Células NUNCA visitadas (Contagem = 0)
+        # Regra B: Priorizar Células NUNCA visitadas (Contagem = 0) - CORREÇÃO DE DESEMPENHO
         nao_visitados = [info for info in vizinhos_info if info['contagem_visitas'] == 0]
+        
         if nao_visitados:
-            # Escolhe o primeiro movimento não visitado (Exploração)
-            posicao = nao_visitados[0]['posicao']
+            # CORREÇÃO: Usar a ordem direcional para quebrar o empate e evitar a exploração cega.
+            # Ordem: 1: Leste (Frente/Direita Comum), 2: Sul, 0: Norte, 3: Oeste (Voltar)
+            prioridade_exploracao = [1, 2, 0, 3] 
+            
+            movimento_escolhido = None
+            
+            for direcao_abs in prioridade_exploracao:
+                for info in nao_visitados:
+                    if info['direcao_abs'] == direcao_abs:
+                        movimento_escolhido = info
+                        break
+                if movimento_escolhido:
+                    break
+            
+            posicao = movimento_escolhido['posicao']
             return (posicao[0] - r, posicao[1] - c)
 
         # Regra C: Backtracking Inteligente (Escolher o MENOS visitado)
         if vizinhos_info:
-            # Encontra o vizinho com o menor contador de visitas (Backtracking)
+            # Se todos já foram visitados, escolhemos o com o menor contador de visitas.
             melhor_movimento = min(vizinhos_info, key=lambda m: m['contagem_visitas'])
             posicao = melhor_movimento['posicao']
             return (posicao[0] - r, posicao[1] - c)
 
-        # Caso de erro ou beco sem saída absoluto
         return None
-
-
-        
