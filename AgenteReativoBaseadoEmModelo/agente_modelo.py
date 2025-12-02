@@ -13,7 +13,7 @@ class AgenteReativoBaseadoEmModelo:
         linhas = len(labirinto)
         colunas = len(labirinto[0])
         
-        # Matriz para rastrear a contagem de visitas (0 = não visitado)
+        # Matriz para rastrear a contagem de visitas (0 = não visitado.)
         self.memoria_visitados = [[0] * colunas for _ in range(linhas)]
         
         # Marca a posição inicial como visitada
