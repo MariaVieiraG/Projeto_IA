@@ -3,22 +3,14 @@ from collections import deque
 
 class AgenteReativoBaseadoEmObjetivo:
     def __init__(self, labirinto, posicao_inicial, objetivo=None, modo_busca="dfs"):
-        """
-        Inicializa o agente baseado em objetivo.
         
-        Args:
-            labirinto: Matriz do labirinto
-            posicao_inicial: Tupla (y, x) da posição inicial
-            objetivo: Tupla (y, x) da posição objetivo/fim
-            modo_busca: "dfs" para Busca em Profundidade ou "bfs" para Busca em Largura
-        """
         self.grafo = labirinto
         self.posicao_inicial = posicao_inicial
         self.posicao_atual = posicao_inicial
         self.objetivo = objetivo
         self.modo_busca = modo_busca.lower()
         
-        # Se objetivo não foi fornecido, tenta detectar no labirinto (valor 3)
+        
         if not self.objetivo:
             for y in range(len(labirinto)):
                 for x in range(len(labirinto[0])):
@@ -28,7 +20,7 @@ class AgenteReativoBaseadoEmObjetivo:
                 if self.objetivo:
                     break
         
-        # Variáveis para controle do caminho planejado
+        
         self.caminho_planejado = []
         self.indice_caminho = 0
         self.caminho_calculado = False
@@ -40,7 +32,7 @@ class AgenteReativoBaseadoEmObjetivo:
         validos = []
         for ny, nx in moves:
             if 0 <= ny < len(self.grafo) and 0 <= nx < len(self.grafo[0]):
-                if self.grafo[ny][nx] != 1:  # Não é parede
+                if self.grafo[ny][nx] != 1:  
                     validos.append((ny, nx))
         return validos
 
@@ -67,7 +59,7 @@ class AgenteReativoBaseadoEmObjetivo:
                 if viz not in visitados:
                     pilha.append((viz, caminho + [viz]))
 
-        return []  # Nenhum caminho encontrado
+        return []  
 
     def busca_bfs(self):
         """
@@ -89,7 +81,7 @@ class AgenteReativoBaseadoEmObjetivo:
                     visitados.add(viz)
                     fila.append((viz, caminho + [viz]))
 
-        return []  # Nenhum caminho encontrado
+        return [] 
 
     def calcular_caminho(self):
         """Calcula o caminho completo usando o modo de busca escolhido."""
@@ -105,25 +97,25 @@ class AgenteReativoBaseadoEmObjetivo:
         Decide o próximo movimento seguindo o caminho planejado.
         Na primeira chamada, calcula o caminho completo.
         """
-        # Calcular o caminho apenas uma vez
+        
         if not self.caminho_calculado:
             self.caminho_planejado = self.calcular_caminho()
             self.caminho_calculado = True
             self.indice_caminho = 0
             
             if not self.caminho_planejado:
-                return None  # Nenhum caminho encontrado
+                return None  
         
-        # Se já chegou ao objetivo
+        
         if self.posicao_atual == self.objetivo:
             return None
         
-        # Se ainda há passos no caminho planejado
+      
         if self.indice_caminho < len(self.caminho_planejado) - 1:
             self.indice_caminho += 1
             proxima_posicao = self.caminho_planejado[self.indice_caminho]
             
-            # Calcula o movimento (dy, dx)
+            
             y, x = self.posicao_atual
             movimento = (proxima_posicao[0] - y, proxima_posicao[1] - x)
             return movimento
