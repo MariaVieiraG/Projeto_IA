@@ -1,32 +1,43 @@
 import os
 import time
 import sys
+from collections import deque 
 
 # Adiciona a pasta raiz do projeto ao path para resolver os imports relativos
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # 1. IMPORTS DOS AGENTES
-# Ajuste conforme a estrutura de pastas
+# Mock classes mantidas para garantir que o script rode mesmo sem todos os arquivos.
 try:
     from AgenteReativoSimples.agente_simples import AgenteReativoSimples
 except ImportError:
-    class AgenteReativoSimples: # Mock
+    class AgenteReativoSimples: 
         def decidir(self, percepcoes): return None
         def __init__(self): pass
 
 from AgenteReativoBaseadoEmModelo.agente_modelo import AgenteReativoBaseadoEmModelo
 
 try:
-    # Agente Baseado em Objetivo (Critério 3: BFS/DFS)
     from AgenteReativoBaseadoEmObjetivo.agente_baseado_obj import AgenteReativoBaseadoEmObjetivo
 except ImportError:
-    class AgenteReativoBaseadoEmObjetivo: pass # Mock para BFS/DFS
+    class AgenteReativoBaseadoEmObjetivo: 
+        def __init__(self, *args, **kwargs): pass
+        def decidir(self, percepcoes): return None
 
 try:
-    # Agente Baseado em Utilidade (Critério 4: A*)
     from AgenteBaseadoEmUtilidade.agente_estrela import AgenteBaseadoEmUtilidade
 except ImportError:
-    class AgenteBaseadoEmUtilidade: pass # Mock para A*
+    class AgenteBaseadoEmUtilidade: 
+        def __init__(self, *args, **kwargs): self.heuristics_map = {'mock': lambda x,y: 0}
+        def solve_astar(self, heuristic_name): return [], 0, 0, 0
+
+try:
+    from AgenteAprendizagem.learning_agent import QLearningAgent
+except ImportError:
+    class QLearningAgent:
+        def __init__(self, *args, **kwargs): pass # __init__ agora não espera argumentos fixos
+        def solve(self, maze, start, goal):
+            return {'path_length': 0, 'training_time': 0, 'success': False, 'episodes': 0}
 
 
 # A classe Labirinto permanece inalterada
@@ -221,7 +232,45 @@ def executar_agente_astar(AgenteClass, nome_arquivo, lab, nome_agente):
     print("-" * 30 + "\n")
 
 
-# 4. FUNÇÃO PRINCIPAL
+# 4. NOVA FUNÇÃO DEDICADA PARA AGENTE DE APRENDIZAGEM (Q-Learning)
+def executar_agente_qlearning(AgenteClass, nome_arquivo, lab, nome_agente):
+    """
+    Executa o Agente de Aprendizagem (Critério 5).
+    CORREÇÃO: Inicializa QLearningAgent() sem argumentos.
+    """
+    print(f"--- Processando [{nome_agente}]: {nome_arquivo} ---")
+    
+    if not lab.inicio or not lab.fim:
+        print("ERRO CRÍTICO: Não foi possível definir Inicio/Fim.\n")
+        return
+
+    print(f"Entrada: {lab.inicio} -> Saída: {lab.fim}")
+
+    # --- CORREÇÃO FINAL APLICADA ---
+    # Inicializa o agente sem passar lab.matriz ou 'episodes'.
+    agente = AgenteClass() 
+    
+    # Treinamento
+    print("Iniciando Treinamento...", end=" ")
+    
+    # Chama o método solve, passando a matriz pura (lista de listas)
+    results = agente.solve(lab.matriz, lab.inicio, lab.fim)
+    
+    path_length = results['path_length']
+    training_time = results['training_time']
+    sucesso = results['success']
+    episodes = results['episodes']
+    
+    # Execução (caminho ótimo aprendido)
+    if sucesso:
+        print(f"FIM TREINAMENTO. RESULTADO: SUCESSO! (Passos: {path_length} | Tempo Treino: {training_time:.3f}s | Episódios: {episodes})")
+    else:
+        print(f"FIM TREINAMENTO. RESULTADO: FALHA (Agente não convergiu após {episodes} episódios).")
+
+    print("-" * 30 + "\n")
+
+
+# 5. FUNÇÃO PRINCIPAL (MAIN)
 def main():
     caminho_labirintos = "Labirintos" 
     
@@ -274,6 +323,15 @@ def main():
         if os.path.exists(caminho_completo):
             lab = Labirinto(caminho_completo)
             executar_agente_astar(AgenteBaseadoEmUtilidade, nome_arquivo, lab, "Agente Baseado em Utilidade (A*)")
+
+
+    # --- TESTE 5: AGENTE APRENDIZAGEM (Q-LEARNING) ---
+    print("="*50 + "\n=== RELATÓRIO DE EXECUÇÃO: AGENTE DE APRENDIZAGEM (Q-Learning) ===\n")
+    for nome_arquivo in arquivos:
+        caminho_completo = os.path.join(caminho_labirintos, nome_arquivo)
+        if os.path.exists(caminho_completo):
+            lab = Labirinto(caminho_completo)
+            executar_agente_qlearning(QLearningAgent, nome_arquivo, lab, "Agente de Aprendizagem (Q-Learning)")
 
 
 if __name__ == "__main__":
