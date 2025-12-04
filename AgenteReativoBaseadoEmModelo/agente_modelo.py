@@ -110,7 +110,10 @@ class AgenteReativoBaseadoEmModelo:
         
         if nao_visitados:
             # Quebra de empate: Prioridade de exploração N, L, S, O
-            prioridade_exploracao = [0, 1, 2, 3] 
+            #prioridade_exploracao = [0, 1, 2, 3]
+            #prioridade_exploracao = [1, 2, 3, 0] 
+            #prioridade_exploracao = [2, 3, 0, 1] 
+            prioridade_exploracao = [3, 0, 1, 2] 
             
             for direcao_abs in prioridade_exploracao:
                 for info in nao_visitados:
