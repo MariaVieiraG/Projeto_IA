@@ -1,5 +1,3 @@
-
-
 class AgenteReativoBaseadoEmModelo:
     def __init__(self, labirinto_matriz_referencia, posicao_inicial):
         # Mapeamento de vetores de movimento (dy, dx)
@@ -11,6 +9,11 @@ class AgenteReativoBaseadoEmModelo:
         
         linhas = len(labirinto_matriz_referencia)
         colunas = len(labirinto_matriz_referencia[0])
+        
+        # Cache de dimensões e direções para evitar recomputações
+        self.linhas = linhas
+        self.colunas = colunas
+        self.direcoes = {'N': (-1, 0), 'S': (1, 0), 'L': (0, 1), 'O': (0, -1)}
         
         # 1. Modelo de Visitas (Contagem de quantas vezes cada célula foi visitada)
         # 0 = não visitado
@@ -30,14 +33,11 @@ class AgenteReativoBaseadoEmModelo:
         """Atualiza o modelo_labirinto (mapa conhecido) com base nas percepções imediatas."""
         r, c = self.posicao_atual
         
-        # Mapeamento: 'N': (-1, 0), 'S': (1, 0), 'L': (0, 1), 'O': (0, -1)
-        direcoes = {'N': (-1, 0), 'S': (1, 0), 'L': (0, 1), 'O': (0, -1)}
-        
-        for dir_key, (dy, dx) in direcoes.items():
+        for dir_key, (dy, dx) in self.direcoes.items():
             ny, nx = r + dy, c + dx
             
             # Verifica se a posição percebida está dentro dos limites da matriz
-            if 0 <= ny < len(self.modelo_labirinto) and 0 <= nx < len(self.modelo_labirinto[0]):
+            if 0 <= ny < self.linhas and 0 <= nx < self.colunas:
                 # A percepção é o valor (0, 1, 2, ou 3) da célula vizinha
                 valor_percebido = percepcoes[dir_key]
                 
@@ -52,14 +52,16 @@ class AgenteReativoBaseadoEmModelo:
         
         if movimento:
             dy, dx = movimento
-            nova_posicao = (y + dy, x + dx)
+            ny, nx = y + dy, x + dx
             
-            self.posicao_atual = nova_posicao
-            r, c = nova_posicao
-            self.memoria_visitados[r][c] += 1
-            
-            return nova_posicao
-            
+            # Checagem defensiva: limites e não-parede segundo o modelo
+            if 0 <= ny < self.linhas and 0 <= nx < self.colunas and self.modelo_labirinto[ny][nx] != 1:
+                self.posicao_atual = (ny, nx)
+                self.memoria_visitados[ny][nx] += 1
+                return self.posicao_atual
+            else:
+                return self.posicao_atual
+        
         return self.posicao_atual
 
     def decidir(self, percepcoes):
@@ -79,7 +81,7 @@ class AgenteReativoBaseadoEmModelo:
             vr, vc = r + dy, c + dx
             
             # Checa se o vizinho está nos limites da MEMÓRIA
-            if 0 <= vr < len(self.modelo_labirinto) and 0 <= vc < len(self.modelo_labirinto[0]):
+            if 0 <= vr < self.linhas and 0 <= vc < self.colunas:
                 
                 # Usa o modelo do labirinto (Memória) para ver o conteúdo
                 conteudo_do_modelo = self.modelo_labirinto[vr][vc]
