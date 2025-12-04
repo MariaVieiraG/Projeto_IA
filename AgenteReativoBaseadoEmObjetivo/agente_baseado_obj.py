@@ -26,7 +26,7 @@ class AgenteReativoBaseadoEmObjetivo:
         self.caminho_calculado = False
 
     def vizinhos_livres(self, pos):
-        """Retorna vizinhos onde o valor não é parede (1)."""
+       
         y, x = pos
         moves = [(y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)]
         validos = []
@@ -37,10 +37,7 @@ class AgenteReativoBaseadoEmObjetivo:
         return validos
 
     def busca_dfs(self):
-        """
-        Busca em Profundidade (DFS - Depth-First Search).
-        Explora o mais profundo possível antes de fazer backtracking.
-        """
+        
         pilha = [(self.posicao_inicial, [self.posicao_inicial])]
         visitados = set()
 
@@ -62,11 +59,7 @@ class AgenteReativoBaseadoEmObjetivo:
         return []  
 
     def busca_bfs(self):
-        """
-        Busca em Largura (BFS - Breadth-First Search).
-        Explora todos os vizinhos no mesmo nível antes de ir mais fundo.
-        Garante o caminho mais curto em termos de número de passos.
-        """
+        
         fila = deque([(self.posicao_inicial, [self.posicao_inicial])])
         visitados = set([self.posicao_inicial])
 
@@ -84,7 +77,7 @@ class AgenteReativoBaseadoEmObjetivo:
         return [] 
 
     def calcular_caminho(self):
-        """Calcula o caminho completo usando o modo de busca escolhido."""
+        
         if self.modo_busca == "dfs":
             return self.busca_dfs()
         elif self.modo_busca == "bfs":
@@ -93,10 +86,6 @@ class AgenteReativoBaseadoEmObjetivo:
             raise ValueError(f"Modo de busca inválido: {self.modo_busca}. Use 'dfs' ou 'bfs'.")
 
     def decidir(self, percepcoes):
-        """
-        Decide o próximo movimento seguindo o caminho planejado.
-        Na primeira chamada, calcula o caminho completo.
-        """
         
         if not self.caminho_calculado:
             self.caminho_planejado = self.calcular_caminho()
@@ -123,7 +112,7 @@ class AgenteReativoBaseadoEmObjetivo:
         return None
     
     def mover(self, movimento):
-        """Atualiza a posição atual após um movimento."""
+        
         if movimento:
             y, x = self.posicao_atual
             dy, dx = movimento
