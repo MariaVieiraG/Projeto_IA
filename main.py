@@ -3,18 +3,34 @@ import time
 import sys
 
 # Adiciona a pasta raiz do projeto ao path para resolver os imports relativos
-# Isso é útil ao rodar em ambientes como PyCharm ou Colab.
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # 1. IMPORTS DOS AGENTES
 # Ajuste conforme a estrutura de pastas
-from AgenteReativoSimples.agente_simples import AgenteReativoSimples
-from AgenteReativoBaseadoEmModelo.agente_modelo import AgenteReativoBaseadoEmModelo
-from AgenteReativoBaseadoEmObjetivo.agente_baseado_obj import AgenteReativoBaseadoEmObjetivo
+try:
+    from AgenteReativoSimples.agente_simples import AgenteReativoSimples
+except ImportError:
+    class AgenteReativoSimples: # Mock
+        def decidir(self, percepcoes): return None
+        def __init__(self): pass
 
-# A classe Labirinto permanece inalterada, pois é perfeita
+from AgenteReativoBaseadoEmModelo.agente_modelo import AgenteReativoBaseadoEmModelo
+
+try:
+    # Agente Baseado em Objetivo (Critério 3: BFS/DFS)
+    from AgenteReativoBaseadoEmObjetivo.agente_baseado_obj import AgenteReativoBaseadoEmObjetivo
+except ImportError:
+    class AgenteReativoBaseadoEmObjetivo: pass # Mock para BFS/DFS
+
+try:
+    # Agente Baseado em Utilidade (Critério 4: A*)
+    from AgenteBaseadoEmUtilidade.agente_estrela import AgenteBaseadoEmUtilidade
+except ImportError:
+    class AgenteBaseadoEmUtilidade: pass # Mock para A*
+
+
+# A classe Labirinto permanece inalterada
 class Labirinto:
-    # ... (Seu código da classe Labirinto é mantido aqui) ...
     def __init__(self, caminho_arquivo):
         self.caminho_arquivo = caminho_arquivo
         self.matriz = []
@@ -25,7 +41,6 @@ class Labirinto:
         self.carregar_labirinto()
         
     def carregar_labirinto(self):
-        # ... (Mantido)
         try:
             with open(self.caminho_arquivo, 'r') as f:
                 for linha in f:
@@ -45,21 +60,20 @@ class Labirinto:
             print(f"Erro ao ler arquivo {self.caminho_arquivo}: {e}")
 
     def detectar_inicio_fim(self):
-        # ... (Mantido)
+        # Lógica de detecção de 2 e 3 (Início/Fim)
         temp_inicio = None
         temp_fim = None
         for y in range(self.linhas):
             for x in range(self.colunas):
-                if self.matriz[y][x] == 2:
-                    temp_inicio = (y, x)
-                elif self.matriz[y][x] == 3:
-                    temp_fim = (y, x)
+                if self.matriz[y][x] == 2: temp_inicio = (y, x)
+                elif self.matriz[y][x] == 3: temp_fim = (y, x)
         
         if temp_inicio and temp_fim:
             self.inicio = temp_inicio
             self.fim = temp_fim
             return
             
+        # Lógica de fallback (para labirintos sem 2/3)
         aberturas = []
         for y in range(self.linhas):
             for x in range(self.colunas):
@@ -106,40 +120,26 @@ class Labirinto:
         return percepcoes
 
 
-# 2. FUNÇÃO MODULAR PARA TESTAR QUALQUER AGENTE
+# 2. FUNÇÃO MODULAR PARA TESTAR AGENTES REATIVOS/OBJETIVO (PASSO A PASSO)
 def executar_agente(AgenteClass, nome_arquivo, lab, max_passos, nome_agente):
-    """Executa e testa um agente em um labirinto específico."""
+    """Executa Agentes Reativos (Simples/Modelo) e Baseados em Objetivo (BFS/DFS) em loop passo a passo."""
 
     print(f"--- Processando [{nome_agente}]: {nome_arquivo} ---")
     
+    # --- Inicialização ---
     if nome_agente == "Agente Reativo Simples":
-        # Agente Simples: não precisa de inicialização especial
         agente = AgenteClass()
-        posicao_atual = lab.inicio
-        
     elif nome_agente == "Agente Reativo Baseado em Modelo":
-        # Agente Modelo: precisa do labirinto e da posição inicial para iniciar a MEMÓRIA
         agente = AgenteClass(lab.matriz, lab.inicio)
-        posicao_atual = lab.inicio # A posição atual será mantida dentro do agente
-        
-    elif nome_agente == "Agente Reativo Baseado em Objetivo (BFS)":
-        # Agente Baseado em Objetivo com BFS
-        agente = AgenteClass(lab.matriz, lab.inicio, lab.fim, modo_busca="bfs")
-        posicao_atual = lab.inicio
-        
-    elif nome_agente == "Agente Reativo Baseado em Objetivo (DFS)":
-        # Agente Baseado em Objetivo com DFS
-        agente = AgenteClass(lab.matriz, lab.inicio, lab.fim, modo_busca="dfs")
-        posicao_atual = lab.inicio
-        
+    elif "Agente Reativo Baseado em Objetivo" in nome_agente:
+        modo = "bfs" if "BFS" in nome_agente else "dfs"
+        agente = AgenteClass(lab.matriz, lab.inicio, lab.fim, modo_busca=modo)
     else:
-        # Outros agentes futuros
-        agente = AgenteClass(lab.matriz, lab.inicio)
-        posicao_atual = lab.inicio
+        return
 
-
+    posicao_atual = lab.inicio
     if not lab.inicio or not lab.fim:
-        print(f"ERRO CRÍTICO: Não foi possível definir Inicio/Fim.\n")
+        print("ERRO CRÍTICO: Não foi possível definir Inicio/Fim.\n")
         return
 
     print(f"Entrada: {lab.inicio} -> Saída: {lab.fim}")
@@ -148,6 +148,7 @@ def executar_agente(AgenteClass, nome_arquivo, lab, max_passos, nome_agente):
     sucesso = False
     start_time = time.time()
 
+    # --- Loop de Execução ---
     while passos < max_passos:
         if posicao_atual == lab.fim:
             sucesso = True
@@ -156,27 +157,26 @@ def executar_agente(AgenteClass, nome_arquivo, lab, max_passos, nome_agente):
         y, x = posicao_atual
         percepcoes = lab.obter_percepcao(y, x)
         
-        # O agente decide. A função decidir varia conforme o agente.
+        # Agente Baseado em Modelo (usa apenas percepções, mas atualiza memória)
         if nome_agente == "Agente Reativo Baseado em Modelo":
-            # Passa a matriz do labirinto para a decisão do Agente Modelo, que a consulta
-            movimento = agente.decidir(percepcoes, lab.matriz) 
+            movimento = agente.decidir(percepcoes) 
         else:
             # Agente Simples e Agente Baseado em Objetivo (apenas percepções)
             movimento = agente.decidir(percepcoes)
 
         if movimento:
-            # Agentes que mantém posição interna (Modelo e Baseado em Objetivo)
+            dy, dx = movimento
+            
+            # Agentes com lógica de movimento e estado interno
             if nome_agente in ["Agente Reativo Baseado em Modelo", "Agente Reativo Baseado em Objetivo (BFS)", "Agente Reativo Baseado em Objetivo (DFS)"]:
                 agente.mover(movimento)
                 posicao_atual = agente.posicao_atual
+            # Agente Simples (só reage, posição atualizada externamente)
             else:
-                # Agente Simples: a posição é atualizada no loop principal
-                posicao_atual = (y + movimento[0], x + movimento[1])
+                posicao_atual = (y + dy, x + dx)
             
             passos += 1
         else:
-            # Beco sem saída não resolvido, ou agente preso
-            # Nota: O agente modelo deve retornar 'movimento' mesmo em backtracking.
             print("Agente retornou movimento nulo ou inválido.")
             break
 
@@ -190,12 +190,41 @@ def executar_agente(AgenteClass, nome_arquivo, lab, max_passos, nome_agente):
     print("-" * 30 + "\n")
 
 
-# 3. FUNÇÃO PRINCIPAL
+# 3. FUNÇÃO DEDICADA PARA AGENTE BASEADO EM UTILIDADE (A*)
+def executar_agente_astar(AgenteClass, nome_arquivo, lab, nome_agente):
+    """Executa o Agente A* (Critério 4), que calcula o caminho completo (offline)."""
+    print(f"--- Processando [{nome_agente}]: {nome_arquivo} ---")
+    
+    if not lab.inicio or not lab.fim:
+        print("ERRO CRÍTICO: Não foi possível definir Inicio/Fim.\n")
+        return
+
+    print(f"Entrada: {lab.inicio} -> Saída: {lab.fim}")
+
+    # Inicializa o Agente A*
+    agente = AgenteClass(lab.matriz, lab.inicio, lab.fim)
+    
+    print("\nResultados por Heurística:")
+    
+    # Itera sobre as 3 heurísticas
+    for heuristic_name in agente.heuristics_map.keys():
+        start_time = time.time()
+        # Chama o solve_astar: retorna path, custo_g, passos e nós expandidos
+        path, custo_g, passos, nos_expandidos = agente.solve_astar(heuristic_name)
+        duracao = time.time() - start_time
+        
+        if path:
+            print(f"  [{heuristic_name}]: SUCESSO! (Passos: {passos} | Custo: {custo_g} | Tempo: {duracao:.6f}s | Expandidos: {nos_expandidos})")
+        else:
+            print(f"  [{heuristic_name}]: FALHA (Caminho não encontrado).")
+
+    print("-" * 30 + "\n")
+
+
+# 4. FUNÇÃO PRINCIPAL
 def main():
-    # Caminho base para a pasta dos labirintos
     caminho_labirintos = "Labirintos" 
     
-    # Mapeamento dos nomes dos arquivos para serem testados
     arquivos = [
         "labirinto expiral.txt",
         "labiritno aleatorio1.txt",
@@ -206,70 +235,46 @@ def main():
     ]
     max_passos = 10000
 
-    
-    # ------------------------------------------------------------------
-    # TESTE 1: AGENTE REATIVO SIMPLES
-    # ------------------------------------------------------------------
-    print("=== RELATÓRIO DE EXECUÇÃO: AGENTE REATIVO SIMPLES ===\n")
+    # --- TESTE 1: AGENTE REATIVO SIMPLES ---
+    print("="*50 + "\n=== RELATÓRIO DE EXECUÇÃO: AGENTE REATIVO SIMPLES ===\n")
     for nome_arquivo in arquivos:
         caminho_completo = os.path.join(caminho_labirintos, nome_arquivo)
-        
-        if not os.path.exists(caminho_completo):
-            print(f"ERRO: Arquivo '{caminho_completo}' não encontrado. Pule.\n")
-            continue
-            
-        lab = Labirinto(caminho_completo)
-        
-        # Chama a função modularizada para execução
-        executar_agente(AgenteReativoSimples, nome_arquivo, lab, max_passos, "Agente Reativo Simples")
+        if os.path.exists(caminho_completo):
+            lab = Labirinto(caminho_completo)
+            executar_agente(AgenteReativoSimples, nome_arquivo, lab, max_passos, "Agente Reativo Simples")
 
     
-    # ------------------------------------------------------------------
-    # TESTE 2: AGENTE REATIVO BASEADO EM MODELO (Sua Parte)
-    # ------------------------------------------------------------------
-    print("\n" + "="*50)
-    print("=== RELATÓRIO DE EXECUÇÃO: AGENTE REATIVO BASEADO EM MODELO ===\n")
+    # --- TESTE 2: AGENTE REATIVO BASEADO EM MODELO ---
+    print("="*50 + "\n=== RELATÓRIO DE EXECUÇÃO: AGENTE REATIVO BASEADO EM MODELO ===\n")
     for nome_arquivo in arquivos:
         caminho_completo = os.path.join(caminho_labirintos, nome_arquivo)
-        
-        if not os.path.exists(caminho_completo):
-            continue # Já deu erro antes
-            
-        lab = Labirinto(caminho_completo)
-        
-        # Chama a função modularizada para execução
-        executar_agente(AgenteReativoBaseadoEmModelo, nome_arquivo, lab, max_passos, "Agente Reativo Baseado em Modelo")
+        if os.path.exists(caminho_completo):
+            lab = Labirinto(caminho_completo)
+            executar_agente(AgenteReativoBaseadoEmModelo, nome_arquivo, lab, max_passos, "Agente Reativo Baseado em Modelo")
 
-    # ------------------------------------------------------------------
-    # TESTE 3: AGENTE REATIVO BASEADO EM OBJETIVO - BFS
-    # ------------------------------------------------------------------
-
-    print("\n" + "="*50)
-    print("=== RELATÓRIO DE EXECUÇÃO: AGENTE REATIVO BASEADO EM OBJETIVO (BFS) ===\n")
+    # --- TESTE 3: AGENTE BASEADO EM OBJETIVO (BFS/DFS) ---
+    print("="*50 + "\n=== RELATÓRIO DE EXECUÇÃO: AGENTE BASEADO EM OBJETIVO (BFS) ===\n")
     for nome_arquivo in arquivos:
         caminho_completo = os.path.join(caminho_labirintos, nome_arquivo)
-        
-        if not os.path.exists(caminho_completo):
-            continue
-            
-        lab = Labirinto(caminho_completo)
-        executar_agente(AgenteReativoBaseadoEmObjetivo, nome_arquivo, lab, max_passos, "Agente Reativo Baseado em Objetivo (BFS)")
+        if os.path.exists(caminho_completo):
+            lab = Labirinto(caminho_completo)
+            executar_agente(AgenteReativoBaseadoEmObjetivo, nome_arquivo, lab, max_passos, "Agente Reativo Baseado em Objetivo (BFS)")
 
-    # ------------------------------------------------------------------
-    # TESTE 4: AGENTE REATIVO BASEADO EM OBJETIVO - DFS
-    # ------------------------------------------------------------------
-
-    print("\n" + "="*50)
-    print("=== RELATÓRIO DE EXECUÇÃO: AGENTE REATIVO BASEADO EM OBJETIVO (DFS) ===\n")
+    print("="*50 + "\n=== RELATÓRIO DE EXECUÇÃO: AGENTE BASEADO EM OBJETIVO (DFS) ===\n")
     for nome_arquivo in arquivos:
         caminho_completo = os.path.join(caminho_labirintos, nome_arquivo)
-        
-        if not os.path.exists(caminho_completo):
-            continue
-            
-        lab = Labirinto(caminho_completo)
-        executar_agente(AgenteReativoBaseadoEmObjetivo, nome_arquivo, lab, max_passos, "Agente Reativo Baseado em Objetivo (DFS)")
-          
+        if os.path.exists(caminho_completo):
+            lab = Labirinto(caminho_completo)
+            executar_agente(AgenteReativoBaseadoEmObjetivo, nome_arquivo, lab, max_passos, "Agente Reativo Baseado em Objetivo (DFS)")
+
+    # --- TESTE 4: AGENTE BASEADO EM UTILIDADE (A*) ---
+    print("="*50 + "\n=== RELATÓRIO DE EXECUÇÃO: AGENTE BASEADO EM UTILIDADE (A*) ===\n")
+    for nome_arquivo in arquivos:
+        caminho_completo = os.path.join(caminho_labirintos, nome_arquivo)
+        if os.path.exists(caminho_completo):
+            lab = Labirinto(caminho_completo)
+            executar_agente_astar(AgenteBaseadoEmUtilidade, nome_arquivo, lab, "Agente Baseado em Utilidade (A*)")
+
 
 if __name__ == "__main__":
     main()
